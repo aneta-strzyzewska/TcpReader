@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="TcpReader:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/TcpReader_jar</output-path>
+    <root id="archive" name="TcpReader.jar">
+      <element id="module-output" name="TcpReader" />
+    </root>
+  </artifact>
+</component>
