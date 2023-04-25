@@ -36,7 +36,7 @@ public class TcpReader {
     private void printStatistics(List<String> data) {
         long bytesSent = 0;
         long bytesReceived = 0;
-        Map<String, Integer> ipAddresses = new LinkedHashMap<>();
+        Map<String, Integer> ipAddresses = new HashMap<>();
         List<LineData> validData = data.stream()
                 .map(this::parseTcpDumpInputLine)
                 .filter(Objects::nonNull)
@@ -48,11 +48,12 @@ public class TcpReader {
             } else {
                 bytesReceived += line.bytes();
             }
-            ipAddresses.merge(line.ipAddress, 1, (key, value) -> value + 1);
+            ipAddresses.merge(line.ipAddress, 1, Integer::sum);
         }
 
-        System.out.println(bytesSent + " bytes sent.");
-        System.out.println(bytesReceived + " bytes received.");
+        System.out.println("\n");
+        System.out.println(bytesSent + " bytes sent");
+        System.out.println(bytesReceived + " bytes received");
         System.out.println("Top ten IPs:");
         ipAddresses.entrySet()
                 .stream()
