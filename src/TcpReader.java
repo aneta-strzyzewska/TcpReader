@@ -4,7 +4,6 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class TcpReader {
 
@@ -35,20 +34,42 @@ public class TcpReader {
     }
 
     private void printStatistics(List<String> data) {
-        long bytesReceived;
-        long bytesSent;
-        LinkedHashMap<String, Integer> ipAddresses;
+        long bytesSent = 0;
+        long bytesReceived = 0;
+        Map<String, Integer> ipAddresses = new LinkedHashMap<>();
 
+        for (var line : data) {
+            LineData parsedLine = parseTcpDumpInputLine(line);
+            if (parsedLine.isOutgoing()) {
+                bytesSent += parsedLine.bytes();
+            } else {
+                bytesReceived += parsedLine.bytes();
+            }
+            ipAddresses.merge(parsedLine.ipAddress, 1, (key, value) -> value + 1);
+        }
 
+        System.out.println(bytesSent + " bytes sent.");
+        System.out.println(bytesReceived + " bytes received.");
+        System.out.println("Top ten IPs:");
+        ipAddresses.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByValue())
+                .forEach(ip ->
+                            System.out.println(ip.getKey() + ": " + ip.getValue())
+                        );
+        //TODO: can be less than ten
+        System.out.println("+ " + (ipAddresses.size() - 10) + " other IPs");
     }
 
     private LineData parseTcpDumpInputLine(String line) {
         try {
             String localhost = InetAddress.getLocalHost().getHostAddress();
 
+            //TODO: check if this is an IP, check length to avoid array out of bounds
             String[] parts = line.split(" ");
             String senderIP = parseIP(parts[2].split("\\."));
             String receiverIP = parseIP(parts[4].split("\\."));
+            //TODO: check for NumberFormatException
             long bytes = Long.parseLong(parts[parts.length-1]);
 
             if(senderIP.equals(localhost)) {
