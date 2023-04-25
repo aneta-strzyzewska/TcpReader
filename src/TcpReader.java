@@ -37,15 +37,18 @@ public class TcpReader {
         long bytesSent = 0;
         long bytesReceived = 0;
         Map<String, Integer> ipAddresses = new LinkedHashMap<>();
+        List<LineData> validData = data.stream()
+                .map(this::parseTcpDumpInputLine)
+                .filter(Objects::nonNull)
+                .toList();
 
-        for (var line : data) {
-            LineData parsedLine = parseTcpDumpInputLine(line);
-            if (parsedLine.isOutgoing()) {
-                bytesSent += parsedLine.bytes();
+        for (var line : validData) {
+            if (line.isOutgoing()) {
+                bytesSent += line.bytes();
             } else {
-                bytesReceived += parsedLine.bytes();
+                bytesReceived += line.bytes();
             }
-            ipAddresses.merge(parsedLine.ipAddress, 1, (key, value) -> value + 1);
+            ipAddresses.merge(line.ipAddress, 1, (key, value) -> value + 1);
         }
 
         System.out.println(bytesSent + " bytes sent.");
@@ -53,23 +56,27 @@ public class TcpReader {
         System.out.println("Top ten IPs:");
         ipAddresses.entrySet()
                 .stream()
-                .sorted(Map.Entry.comparingByValue())
+                .sorted((entry1, entry2) -> Integer.compare(entry2.getValue(), entry1.getValue()) )
+                .limit(10)
                 .forEach(ip ->
-                            System.out.println(ip.getKey() + ": " + ip.getValue())
+                            System.out.println(ip.getKey() + "\t" + ip.getValue() + " connections")
                         );
-        //TODO: can be less than ten
-        System.out.println("+ " + (ipAddresses.size() - 10) + " other IPs");
+        if(ipAddresses.size() > 10) {
+            System.out.println("+ " + (ipAddresses.size() - 10) + " other IPs");
+        }
     }
 
     private LineData parseTcpDumpInputLine(String line) {
         try {
             String localhost = InetAddress.getLocalHost().getHostAddress();
 
-            //TODO: check if this is an IP, check length to avoid array out of bounds
             String[] parts = line.split(" ");
+            // Skipping over lines which don't fit the most common format for simplicity
+            if(parts.length < 5 || !"IP".equals(parts[1]) || !isNumeric(parts[parts.length-1])) {
+                return null;
+            }
             String senderIP = parseIP(parts[2].split("\\."));
             String receiverIP = parseIP(parts[4].split("\\."));
-            //TODO: check for NumberFormatException
             long bytes = Long.parseLong(parts[parts.length-1]);
 
             if(senderIP.equals(localhost)) {
@@ -84,6 +91,15 @@ public class TcpReader {
 
     private String parseIP(String[] parts) {
         return String.join(".", Arrays.copyOfRange(parts, 0, 4)).trim();
+    }
+
+    private boolean isNumeric(String number) {
+        try {
+            Long.parseLong(number);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     record LineData (long bytes, String ipAddress, boolean isOutgoing) { }
